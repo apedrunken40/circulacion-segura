@@ -6,6 +6,8 @@
 <title>Circulación segura · San José del Cabo</title>
 <meta name="description" content="Mapa bilingüe de circulación segura del Centro Histórico de San José del Cabo / Bilingual safe-driving map of downtown San José del Cabo.">
 <meta name="theme-color" content="#0b3a6e">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="lib/leaflet.css">
 <link rel="stylesheet" href="estilos.css">
 </head>
@@ -89,7 +91,6 @@
     if (d.titulo) h += '<h3>' + escapar(d.titulo) + '</h3>';
     if (d.descripcion) h += '<p>' + escapar(d.descripcion) + '</p>';
     if (p.foto) h += '<img src="' + escapar(p.foto) + '" alt="" loading="lazy" onerror="this.remove()">';
-    if (p.fecha) h += '<div class="fecha">' + TXT[lang].fecha + ' ' + escapar(p.fecha) + '</div>';
     return h + '</div>';
   }
 
