@@ -7,7 +7,7 @@ window.CONFIG = {
   zoom: 17,
 
   // Liga de tu encuesta de Google Forms (déjala en '' si aún no la tienes)
-  encuestaUrl: '',
+  encuestaUrl: 'https://docs.google.com/forms/d/e/1FAIpQLScDnuGz0jU2J2aULM1AAAQQy71Bz1n_aqW00S5w5qh8YNhQgA/viewform',
 
   // Liga de un formulario para que la gente reporte cierres o señales dañadas
   reporteUrl: '',
