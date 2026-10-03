@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Circulación segura · San José del Cabo</title>
+<meta name="description" content="Mapa bilingüe de circulación segura del Centro Histórico de San José del Cabo / Bilingual safe-driving map of downtown San José del Cabo.">
+<meta name="theme-color" content="#0b3a6e">
+<link rel="stylesheet" href="lib/leaflet.css">
+<link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+
+<header class="barra">
+  <div class="titulo">
+    <h1 data-t="titulo">Circulación segura</h1>
+    <p data-t="subtitulo">Centro Histórico · San José del Cabo</p>
+  </div>
+  <div class="idioma" role="group" aria-label="Idioma / Language">
+    <button type="button" data-lang="es">Español</button>
+    <button type="button" data-lang="en">English</button>
+  </div>
+</header>
+
+<div id="mapa" aria-label="Mapa"></div>
+<div class="aviso-ejemplo" id="avisoEjemplo" hidden data-t="aviso"></div>
+
+<div class="pista" id="pista" data-t="pista">👆 Toca un círculo de color para ver qué pasa en esa calle</div>
+
+<button class="yo-btn" id="btnYo" type="button"><span aria-hidden="true">📍</span> <span data-t="dondeEstoy">¿Dónde estoy?</span></button>
+
+<section class="panel" id="panel">
+  <div class="leyenda" id="leyenda"></div>
+  <button type="button" class="mas" id="btnMas" data-t="mas">Más información ▾</button>
+  <div id="extra" hidden>
+    <div class="acciones">
+      <a class="btn prim" id="btnEncuesta" target="_blank" rel="noopener" hidden data-t="encuesta">Responder encuesta</a>
+      <a class="btn sec" id="btnReporte" target="_blank" rel="noopener" hidden data-t="reporte">Reportar un cierre o señal dañada</a>
+    </div>
+    <div class="acerca" id="acerca"></div>
+  </div>
+</section>
+
+<script src="lib/leaflet.js"></script>
+<script src="config.js"></script>
+<script src="comun.js"></script>
+<script src="puntos.js"></script>
+<script>
+(function () {
+  const C = window.CONFIG, DATOS = window.PUNTOS || [];
+  const TXT = {
+    es: {
+      titulo: 'Circulación segura', subtitulo: 'Centro Histórico · San José del Cabo',
+      pista: '👆 Toca un círculo de color para ver qué pasa en esa calle',
+      dondeEstoy: '¿Dónde estoy?', mas: 'Más información ▾', menos: 'Menos información ▴',
+      encuesta: '✍️ Dar mi opinión (1 minuto)', reporte: '📣 Avisar de una calle cerrada o señal dañada',
+      aviso: 'Vista previa: estos puntos son de ejemplo',
+      acerca: '<strong>¿Para qué sirve?</strong> Para saber, antes de llegar, qué calles están cerradas, hacia dónde se circula y dónde hay que tener más cuidado. Es gratis y no necesitas instalar nada.',
+      credito: 'Proyecto de {autor} · {programa}',
+      sinUbic: 'No se pudo saber dónde estás. Revisa que tu celular tenga la ubicación (GPS) encendida.',
+      aqui: 'Estás aquí', fecha: 'Revisado el', cerrar: 'Cerrar'
+    },
+    en: {
+      titulo: 'Safe driving map', subtitulo: 'Historic Downtown · San José del Cabo',
+      pista: '👆 Tap a colored circle to see what is happening on that street',
+      dondeEstoy: 'Where am I?', mas: 'More information ▾', menos: 'Less information ▴',
+      encuesta: '✍️ Give feedback (1 minute)', reporte: '📣 Report a closed street or damaged sign',
+      aviso: 'Preview: these points are samples',
+      acerca: '<strong>What is it for?</strong> To know, before you get there, which streets are closed, which way traffic goes and where to be extra careful. It is free and you don’t need to install anything.',
+      credito: 'Project by {autor} · {programa}',
+      sinUbic: 'We could not find your location. Please check that location (GPS) is turned on.',
+      aqui: 'You are here', fecha: 'Checked on', cerrar: 'Close'
+    }
+  };
+
+  let lang = new URLSearchParams(location.search).get('lang');
+  try { lang = lang || localStorage.getItem('lang'); } catch (e) {}
+  if (lang !== 'es' && lang !== 'en') lang = (navigator.language || 'es').toLowerCase().startsWith('es') ? 'es' : 'en';
+
+  const mapa = L.map('mapa', { zoomControl: false }).setView(C.centro, C.zoom);
+  L.control.zoom({ position: 'topright' }).addTo(mapa);
+  capaBase(mapa);
+  const capa = L.layerGroup().addTo(mapa);
+
+  function popupHTML(p) {
+    const t = TIPOS[p.tipo], d = (p[lang] && p[lang].titulo) ? p[lang] : (p.es || {});
+    let h = '<div class="pop"><div class="etq" style="background:' + t.color + '">' + t.glifo + ' ' + escapar(t[lang]) + '</div>';
+    if (p.prioridad && PRIORIDADES[p.prioridad]) h += '<div class="prio prio-' + p.prioridad + '">' + PRIORIDADES[p.prioridad][lang] + '</div>';
+    if (d.titulo) h += '<h3>' + escapar(d.titulo) + '</h3>';
+    if (d.descripcion) h += '<p>' + escapar(d.descripcion) + '</p>';
+    if (p.foto) h += '<img src="' + escapar(p.foto) + '" alt="" loading="lazy" onerror="this.remove()">';
+    if (p.fecha) h += '<div class="fecha">' + TXT[lang].fecha + ' ' + escapar(p.fecha) + '</div>';
+    return h + '</div>';
+  }
+
+  function dibujar() {
+    capa.clearLayers();
+    DATOS.forEach(function (p) {
+      if (!TIPOS[p.tipo]) return;
+      let c;
+      if (TIPOS[p.tipo].linea && Array.isArray(p.coords) && p.coords.length > 1) c = lineaConFlechas(p.coords, p.tipo);
+      else if (typeof p.lat === 'number') c = L.marker([p.lat, p.lng], { icon: iconoTipo(p.tipo, true) });
+      else return;
+      c.bindPopup(popupHTML(p), { maxWidth: 300 });
+      c.on('click', ocultarPista);
+      c.addTo(capa);
+    });
+  }
+
+  // Leyenda: solo los tipos que aparecen en el mapa, sin botones
+  function pintarLeyenda() {
+    const usados = Object.keys(TIPOS).filter(function (k) { return DATOS.some(function (p) { return p.tipo === k; }); });
+    document.getElementById('leyenda').innerHTML = usados.map(function (k) {
+      const t = TIPOS[k];
+      const muestra = t.linea
+        ? '<span class="lin" style="color:' + t.color + '">━➤</span>'
+        : '<span class="dot" style="background:' + t.color + '">' + t.glifo + '</span>';
+      return '<div class="item">' + muestra + '<span>' + t[lang] + '</span></div>';
+    }).join('');
+  }
+
+  function aplicarIdioma(l) {
+    lang = l;
+    try { localStorage.setItem('lang', l); } catch (e) {}
+    document.documentElement.lang = l;
+    document.querySelectorAll('[data-lang]').forEach(function (b) { b.classList.toggle('on', b.dataset.lang === l); });
+    document.querySelectorAll('[data-t]').forEach(function (el) { if (TXT[l][el.dataset.t]) el.textContent = TXT[l][el.dataset.t]; });
+    document.getElementById('btnMas').textContent = extra.hidden ? TXT[l].mas : TXT[l].menos;
+    document.getElementById('acerca').innerHTML = TXT[l].acerca + '<br><br>' +
+      escapar(TXT[l].credito.replace('{autor}', C.autor).replace('{programa}', C.programa)) + '<br>#SOYVOLUNTARIOCEFODEH';
+    document.title = TXT[l].titulo + ' · San José del Cabo';
+    mapa.closePopup();
+    pintarLeyenda();
+    dibujar();
+    ajustarPanel();
+  }
+
+  function ajustarPanel() {
+    const h = window.innerWidth >= 760 ? 0 : document.getElementById('panel').offsetHeight;
+    document.documentElement.style.setProperty('--alto-panel', h + 'px');
+  }
+  window.addEventListener('resize', ajustarPanel);
+
+  const extra = document.getElementById('extra');
+  document.getElementById('btnMas').onclick = function () {
+    extra.hidden = !extra.hidden;
+    this.textContent = extra.hidden ? TXT[lang].mas : TXT[lang].menos;
+    ajustarPanel();
+  };
+
+  const pista = document.getElementById('pista');
+  function ocultarPista() { pista.classList.add('fuera'); }
+  setTimeout(ocultarPista, 9000);
+
+  if (C.encuestaUrl) { const e = document.getElementById('btnEncuesta'); e.href = C.encuestaUrl; e.hidden = false; }
+  if (C.reporteUrl) { const r = document.getElementById('btnReporte'); r.href = C.reporteUrl; r.hidden = false; }
+  if (DATOS.some(function (p) { return p.ejemplo; })) document.getElementById('avisoEjemplo').hidden = false;
+
+  let yo = null;
+  document.getElementById('btnYo').onclick = function () {
+    if (!navigator.geolocation) return alert(TXT[lang].sinUbic);
+    navigator.geolocation.getCurrentPosition(function (pos) {
+      const ll = [pos.coords.latitude, pos.coords.longitude];
+      if (yo) mapa.removeLayer(yo);
+      yo = L.marker(ll, { icon: L.divIcon({ className: 'yo', html: '<span></span>', iconSize: [18, 18] }) }).addTo(mapa).bindPopup(TXT[lang].aqui).openPopup();
+      mapa.setView(ll, 18);
+    }, function () { alert(TXT[lang].sinUbic); }, { enableHighAccuracy: true, timeout: 12000 });
+  };
+
+  document.querySelectorAll('[data-lang]').forEach(function (b) { b.onclick = function () { aplicarIdioma(b.dataset.lang); }; });
+
+  const todos = [];
+  DATOS.forEach(function (p) { if (p.coords) p.coords.forEach(function (c) { todos.push(c); }); else if (typeof p.lat === 'number') todos.push([p.lat, p.lng]); });
+  if (todos.length > 1) mapa.fitBounds(todos, { paddingTopLeft: [40, 120], paddingBottomRight: [40, 220], maxZoom: 18 });
+
+  aplicarIdioma(lang);
+
+  if (C.goatcounter) {
+    const s = document.createElement('script');
+    s.async = true; s.src = 'https://gc.zgo.at/count.js';
+    s.dataset.goatcounter = 'https://' + C.goatcounter + '.goatcounter.com/count';
+    document.body.appendChild(s);
+  }
+})();
+</script>
+</body>
+</html>

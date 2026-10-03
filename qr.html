@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cartel QR · Circulación segura</title>
+<meta name="robots" content="noindex">
+<style>
+  :root { --azul: #0b3a6e; --azul-2: #1d4ed8; --tinta: #13202f; --gris: #5b6776; }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: var(--tinta); background: #e9edf2; }
+  .ctrl { max-width: 720px; margin: 0 auto; padding: 16px; display: grid; gap: 8px; }
+  .ctrl label { font-weight: 700; font-size: 14px; }
+  .ctrl input { font: inherit; font-size: 16px; padding: 10px 12px; border: 1px solid #cfd6de; border-radius: 10px; width: 100%; }
+  .ctrl button { font: inherit; font-weight: 700; border: 0; border-radius: 10px; padding: 12px; background: var(--azul-2); color: #fff; cursor: pointer; }
+  .ctrl p { margin: 0; font-size: 13px; color: var(--gris); }
+  .cartel {
+    width: 100%; max-width: 720px; margin: 0 auto 24px; background: #fff; border-radius: 16px; overflow: hidden;
+    box-shadow: 0 6px 24px rgba(15,30,50,.15);
+  }
+  .cab { background: var(--azul); color: #fff; padding: 28px 28px 22px; text-align: center; }
+  .cab h1 { margin: 0; font-size: clamp(26px, 6vw, 40px); line-height: 1.1; }
+  .cab h2 { margin: 8px 0 0; font-size: clamp(17px, 4vw, 24px); font-weight: 600; opacity: .9; }
+  .cuerpo { padding: 26px 28px 30px; text-align: center; }
+  #qr { width: min(330px, 80%); margin: 0 auto; }
+  #qr svg { width: 100%; height: auto; display: block; }
+  .pasos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 22px; text-align: center; }
+  .paso b { display: grid; place-items: center; width: 40px; height: 40px; margin: 0 auto 6px; border-radius: 50%; background: var(--azul-2); color: #fff; font-size: 20px; }
+  .paso span { display: block; font-size: 16px; font-weight: 700; line-height: 1.25; }
+  .paso small { display: block; font-size: 13.5px; color: var(--gris); margin-top: 2px; }
+  .pie { margin-top: 22px; font-size: 13px; color: var(--gris); line-height: 1.5; }
+  .pie .liga { font-size: 14px; color: var(--tinta); font-weight: 700; word-break: break-all; }
+  @media (max-width: 480px) { .pasos { grid-template-columns: 1fr; } }
+  @media print {
+    @page { size: letter; margin: 10mm; }
+    body { background: #fff; }
+    .ctrl { display: none; }
+    .cartel { box-shadow: none; border-radius: 0; max-width: none; margin: 0; }
+    .cab { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .paso b { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    #qr { width: 95mm; }
+  }
+</style>
+</head>
+<body>
+
+<div class="ctrl">
+  <label for="url">Dirección (liga) de tu mapa</label>
+  <input id="url" inputmode="url">
+  <p>Cuando publiques el mapa, revisa que aquí aparezca la liga correcta. Luego presiona Imprimir (o "Guardar como PDF").</p>
+  <button type="button" onclick="window.print()">🖨️ Imprimir cartel</button>
+</div>
+
+<div class="cartel">
+  <div class="cab">
+    <h1>¿Vas a manejar por el Centro?</h1>
+    <h2>Driving downtown? · Mapa gratis / Free map</h2>
+  </div>
+  <div class="cuerpo">
+    <div id="qr"></div>
+    <div class="pasos">
+      <div class="paso"><b>1</b><span>Abre la cámara</span><small>Open your camera</small></div>
+      <div class="paso"><b>2</b><span>Apunta al cuadro</span><small>Point at the code</small></div>
+      <div class="paso"><b>3</b><span>Toca el enlace</span><small>Tap the link</small></div>
+    </div>
+    <div class="pie">
+      Calles cerradas · sentido de las calles · cruces peligrosos<br>
+      Closed streets · one-way streets · dangerous crossings<br><br>
+      <span class="liga" id="ligaTxt"></span><br>
+      #SOYVOLUNTARIOCEFODEH
+    </div>
+  </div>
+</div>
+
+<script src="lib/qrcode.js"></script>
+<script>
+  const input = document.getElementById('url');
+  const base = location.href.replace(/qr\.html.*$/, '');
+  input.value = /^https?:/.test(base) ? base : 'https://TU-USUARIO.github.io/circulacion-segura/';
+  function pintar() {
+    const q = qrcode(0, 'M');
+    q.addData(input.value.trim());
+    q.make();
+    document.getElementById('qr').innerHTML = q.createSvgTag({ cellSize: 8, margin: 2, scalable: true });
+    document.getElementById('ligaTxt').textContent = input.value.trim().replace(/^https?:\/\//, '');
+  }
+  input.addEventListener('input', pintar);
+  pintar();
+</script>
+</body>
+</html>

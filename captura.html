@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Modo captura · Circulación segura</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#13202f">
+<link rel="stylesheet" href="lib/leaflet.css">
+<link rel="stylesheet" href="estilos.css">
+<style>
+  .barra { background: #13202f; }
+  .contador { background: rgba(255,255,255,.15); border-radius: 999px; padding: 6px 12px; font-weight: 800; font-size: 14px; }
+  .gps { position: fixed; z-index: 1001; left: 50%; transform: translateX(-50%); top: calc(62px + env(safe-area-inset-top));
+         background: #fff; border-radius: 999px; padding: 6px 12px; font-size: 13px; font-weight: 700; box-shadow: var(--sombra); white-space: nowrap; }
+  .gps.ok { color: #0f7a3d; } .gps.mal { color: #b42318; }
+  .abajo { position: fixed; z-index: 1000; left: 0; right: 0; bottom: 0; background: #fff; border-radius: 18px 18px 0 0;
+           box-shadow: var(--sombra); padding: 12px 14px calc(12px + env(safe-area-inset-bottom)); display: grid; gap: 8px; }
+  .fila { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .btn.ok { background: #0f7a3d; color: #fff; }
+  .btn.peligro { background: #fff; color: #b42318; border: 2px solid #f1b5ae; }
+  .modo { background: #1d4ed8; color: #fff; border-radius: 12px; padding: 10px 12px; font-weight: 700; font-size: 14.5px; text-align: center; }
+  .hoja { position: fixed; z-index: 1100; inset: 0; background: rgba(10,20,30,.45); display: flex; align-items: flex-end; }
+  .hoja > div { background: #fff; width: 100%; max-height: 92vh; overflow: auto; border-radius: 18px 18px 0 0; padding: 16px 16px calc(16px + env(safe-area-inset-bottom)); }
+  @media (min-width: 760px) { .hoja { align-items: center; justify-content: center; } .hoja > div { max-width: 560px; border-radius: 18px; } .abajo { left: 16px; right: auto; width: 420px; bottom: 16px; border-radius: 18px; } }
+  .hoja h2 { margin: 0 0 12px; font-size: 18px; }
+  .hoja label { display: block; font-weight: 700; font-size: 14px; margin: 14px 0 6px; }
+  .hoja input, .hoja textarea { width: 100%; font: inherit; font-size: 16px; padding: 11px 12px; border: 1px solid var(--linea); border-radius: 10px; }
+  .hoja textarea { min-height: 70px; resize: vertical; }
+  .tipos { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .opc { display: flex; align-items: center; gap: 8px; border: 2px solid var(--linea); background: #fff; border-radius: 12px; padding: 10px; font-size: 14px; font-weight: 600; text-align: left; min-height: 48px; }
+  .opc.sel { border-color: #1d4ed8; background: #eef3ff; }
+  .opc .dot { width: 24px; height: 24px; border-radius: 50%; color: #fff; display: grid; place-items: center; font-weight: 800; font-size: 13px; flex: none; }
+  .prios { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .prios .opc { justify-content: center; }
+  .nota { font-size: 12.5px; color: var(--gris); margin-top: 4px; }
+  .lista { margin: 0; padding: 0; list-style: none; }
+  .lista li { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--linea); }
+  .lista .dot { width: 24px; height: 24px; border-radius: 50%; color: #fff; display: grid; place-items: center; font-weight: 800; font-size: 13px; flex: none; }
+  .lista .txt { flex: 1; min-width: 0; font-size: 14px; }
+  .lista .txt small { display: block; color: var(--gris); }
+  .lista button { border: 1px solid var(--linea); background: #fff; border-radius: 8px; padding: 7px 10px; font-size: 13px; }
+  .bot { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 16px; }
+</style>
+</head>
+<body>
+
+<header class="barra">
+  <div class="titulo">
+    <h1>Modo captura</h1>
+    <p>Recorrido de campo · solo para el voluntario</p>
+  </div>
+  <span class="contador" id="contador">0 puntos</span>
+</header>
+
+<div id="mapa"></div>
+<div class="gps" id="gps">Buscando GPS…</div>
+
+<div class="abajo" id="abajo">
+  <div class="modo" id="modoLinea" hidden></div>
+  <button class="btn prim" id="btnAqui" type="button">📍 Registrar punto donde estoy</button>
+  <div class="fila">
+    <button class="btn sec" id="btnLinea" type="button">➜ Dibujar sentido / desvío</button>
+    <button class="btn sec" id="btnLista" type="button">📋 Mis puntos y exportar</button>
+  </div>
+  <div class="nota" style="text-align:center">También puedes tocar el mapa para registrar un punto en ese lugar.</div>
+</div>
+
+<!-- formulario -->
+<div class="hoja" id="hojaForm" hidden>
+  <div>
+    <h2 id="formTitulo">Nuevo punto</h2>
+    <label>¿Qué encontraste?</label>
+    <div class="tipos" id="selTipo"></div>
+    <label>¿Qué tan peligroso es?</label>
+    <div class="prios" id="selPrio"></div>
+    <label for="tEs">Título en español</label>
+    <input id="tEs" placeholder="Ej.: Poste sin placa de sentido">
+    <label for="dEs">Descripción en español (qué pasa y qué hacer)</label>
+    <textarea id="dEs" placeholder="Ej.: No se indica el sentido. Se circula de oriente a poniente."></textarea>
+    <label for="tEn">Title in English</label>
+    <input id="tEn" placeholder="E.g.: Missing one-way sign">
+    <label for="dEn">Description in English</label>
+    <textarea id="dEn" placeholder="E.g.: No sign shows the direction. Traffic goes west."></textarea>
+    <label for="foto">Foto (nombre del archivo)</label>
+    <input id="foto" placeholder="fotos/punto-01.jpg">
+    <div class="nota">Opcional. Sube después la foto a la carpeta <b>fotos</b> con este mismo nombre.</div>
+    <label for="fecha">Fecha</label>
+    <input id="fecha" type="date">
+    <div class="nota" id="coordsTxt"></div>
+    <div class="bot">
+      <button class="btn sec" id="btnCancelar" type="button">Cancelar</button>
+      <button class="btn ok" id="btnGuardar" type="button">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- lista / exportar -->
+<div class="hoja" id="hojaLista" hidden>
+  <div>
+    <h2>Mis puntos</h2>
+    <ul class="lista" id="lista"></ul>
+    <label>Exportar</label>
+    <div class="acciones">
+      <button class="btn ok" id="btnExpJs" type="button">⬇️ Descargar puntos.js (para el mapa)</button>
+      <button class="btn sec" id="btnExpCsv" type="button">⬇️ Descargar tabla CSV (Excel, evidencia)</button>
+      <button class="btn sec" id="btnImp" type="button">⬆️ Cargar un puntos.js guardado</button>
+      <input type="file" id="archivo" accept=".js,.json,text/javascript,application/json" hidden>
+      <button class="btn peligro" id="btnBorrarTodo" type="button">Borrar todos los puntos de este celular</button>
+    </div>
+    <div class="nota">Los puntos se guardan en este navegador. Descarga <b>puntos.js</b> al terminar cada recorrido como respaldo.</div>
+    <div class="bot" style="grid-template-columns:1fr"><button class="btn sec" id="btnCerrarLista" type="button">Cerrar</button></div>
+  </div>
+</div>
+
+<script src="lib/leaflet.js"></script>
+<script src="config.js"></script>
+<script src="comun.js"></script>
+<script src="puntos.js"></script>
+<script src="pendientes.js" onerror="window.PENDIENTES=[]"></script>
+<script>
+(function () {
+  const C = window.CONFIG, CLAVE = 'captura-puntos-v1';
+  let puntos = [];
+  try { puntos = JSON.parse(localStorage.getItem(CLAVE) || 'null'); } catch (e) { puntos = null; }
+  if (!Array.isArray(puntos)) puntos = (window.PUNTOS || []).filter(function (p) { return !p.ejemplo; });
+
+  // Puntos preparados con texto pero sin ubicación (pendientes.js): se agregan una sola vez
+  let yaImportados = [];
+  try { yaImportados = JSON.parse(localStorage.getItem('captura-pendientes-importados') || '[]'); } catch (e) {}
+  (window.PENDIENTES || []).forEach(function (p) {
+    if (yaImportados.indexOf(p.id) >= 0 || puntos.some(function (q) { return q.id === p.id; })) return;
+    puntos.push(JSON.parse(JSON.stringify(p))); yaImportados.push(p.id);
+  });
+  try { localStorage.setItem('captura-pendientes-importados', JSON.stringify(yaImportados)); } catch (e) {}
+  const sinUbicar = function (p) { return !p.coords && typeof p.lat !== 'number'; };
+
+  function guardarLocal() {
+    try { localStorage.setItem(CLAVE, JSON.stringify(puntos)); } catch (e) { alert('No se pudo guardar en este navegador. Descarga puntos.js para no perder datos.'); }
+    const pend = puntos.filter(sinUbicar).length;
+    document.getElementById('contador').textContent = (puntos.length - pend) + ' en mapa' + (pend ? ' · ' + pend + ' por ubicar' : '');
+  }
+
+  const mapa = L.map('mapa', { zoomControl: false }).setView(C.centro, C.zoom);
+  L.control.zoom({ position: 'topright' }).addTo(mapa);
+  capaBase(mapa);
+  const capa = L.layerGroup().addTo(mapa);
+
+  function dibujar() {
+    capa.clearLayers();
+    puntos.forEach(function (p, i) {
+      if (sinUbicar(p)) return;
+      let c;
+      if (TIPOS[p.tipo].linea && p.coords) c = lineaConFlechas(p.coords, p.tipo);
+      else c = L.marker([p.lat, p.lng], { icon: iconoTipo(p.tipo) });
+      c.on('click', function () { abrirForm(i); });
+      c.addTo(capa);
+    });
+  }
+
+  // ---------- GPS en vivo ----------
+  let miPos = null, miMarca = null, miCirculo = null, centrado = false;
+  const gps = document.getElementById('gps');
+  if (navigator.geolocation) {
+    navigator.geolocation.watchPosition(function (pos) {
+      miPos = [pos.coords.latitude, pos.coords.longitude];
+      const acc = Math.round(pos.coords.accuracy);
+      gps.textContent = 'GPS: precisión ±' + acc + ' m';
+      gps.className = 'gps ' + (acc <= 15 ? 'ok' : 'mal');
+      if (!miMarca) {
+        miMarca = L.marker(miPos, { icon: L.divIcon({ className: 'yo', html: '<span></span>', iconSize: [18, 18] }), interactive: false }).addTo(mapa);
+        miCirculo = L.circle(miPos, { radius: acc, color: '#2563eb', weight: 1, fillOpacity: .08, interactive: false }).addTo(mapa);
+      } else { miMarca.setLatLng(miPos); miCirculo.setLatLng(miPos).setRadius(acc); }
+      if (!centrado) { mapa.setView(miPos, 18); centrado = true; }
+    }, function () { gps.textContent = 'Sin GPS: activa la ubicación o toca el mapa'; gps.className = 'gps mal'; },
+    { enableHighAccuracy: true, maximumAge: 2000, timeout: 20000 });
+  } else { gps.textContent = 'Este navegador no tiene GPS'; gps.className = 'gps mal'; }
+
+  // ---------- modo línea ----------
+  let linea = null; // { tipo, coords, capaTemp }
+  const modoTxt = document.getElementById('modoLinea');
+  function actualizarModo() {
+    if (!linea) { modoTxt.hidden = true; document.getElementById('btnLinea').textContent = '➜ Dibujar sentido / desvío'; return; }
+    modoTxt.hidden = false;
+    modoTxt.textContent = linea.coords.length === 0 ? 'Toca el mapa donde EMPIEZA la calle (de donde vienen los autos)'
+      : linea.coords.length === 1 ? 'Ahora toca donde TERMINA (hacia donde van los autos)'
+      : linea.coords.length + ' puntos. Toca para seguir la calle o presiona "Terminar línea".';
+    document.getElementById('btnLinea').textContent = linea.coords.length >= 2 ? '✅ Terminar línea' : '✖ Cancelar línea';
+  }
+  document.getElementById('btnLinea').onclick = function () {
+    if (!linea) { linea = { coords: [], capaTemp: L.layerGroup().addTo(mapa) }; actualizarModo(); return; }
+    if (linea.coords.length >= 2) {
+      const coords = linea.coords, destino = linea.destino;
+      mapa.removeLayer(linea.capaTemp); linea = null; actualizarModo();
+      if (destino != null) { puntos[destino].coords = coords; guardarLocal(); dibujar(); abrirForm(destino); }
+      else abrirForm(null, { coords: coords });
+    }
+    else { mapa.removeLayer(linea.capaTemp); linea = null; actualizarModo(); }
+  };
+
+  let ubicando = null;
+  function empezarUbicar(i) {
+    const p = puntos[i];
+    if (TIPOS[p.tipo].linea) {
+      linea = { coords: [], capaTemp: L.layerGroup().addTo(mapa), destino: i };
+      actualizarModo();
+      return;
+    }
+    ubicando = i;
+    modoTxt.hidden = false;
+    modoTxt.textContent = '📍 Toca el mapa donde está: «' + p.es.titulo + '»' + (p.pista ? ' — ' + p.pista : '') + ' (toca aquí para cancelar)';
+  }
+  modoTxt.onclick = function () { if (ubicando != null) { ubicando = null; modoTxt.hidden = true; } };
+
+  mapa.on('click', function (e) {
+    const ll = [+e.latlng.lat.toFixed(6), +e.latlng.lng.toFixed(6)];
+    if (ubicando != null) {
+      const i = ubicando; ubicando = null; modoTxt.hidden = true;
+      puntos[i].lat = ll[0]; puntos[i].lng = ll[1];
+      guardarLocal(); dibujar(); abrirForm(i);
+      return;
+    }
+    if (linea) {
+      linea.coords.push(ll);
+      linea.capaTemp.clearLayers();
+      if (linea.coords.length > 1) lineaConFlechas(linea.coords, 'sentido').addTo(linea.capaTemp);
+      else L.circleMarker(ll, { radius: 7, color: '#1d4ed8' }).addTo(linea.capaTemp);
+      actualizarModo();
+      return;
+    }
+    abrirForm(null, { lat: ll[0], lng: ll[1] });
+  });
+
+  document.getElementById('btnAqui').onclick = function () {
+    if (!miPos) return alert('Todavía no hay señal de GPS. Espera unos segundos o toca el mapa en el lugar exacto.');
+    abrirForm(null, { lat: +miPos[0].toFixed(6), lng: +miPos[1].toFixed(6) });
+  };
+
+  // ---------- formulario ----------
+  let edit = null, borrador = null, tipoSel = 'faltante', prioSel = 'media';
+  const hojaForm = document.getElementById('hojaForm');
+  function pintarOpciones() {
+    const esLinea = borrador && borrador.coords;
+    document.getElementById('selTipo').innerHTML = Object.keys(TIPOS).filter(function (k) { return !!TIPOS[k].linea === !!esLinea; }).map(function (k) {
+      const t = TIPOS[k];
+      return '<button type="button" class="opc' + (k === tipoSel ? ' sel' : '') + '" data-tipo="' + k + '"><span class="dot" style="background:' + t.color + '">' + t.glifo + '</span>' + t.es + '</button>';
+    }).join('');
+    document.getElementById('selPrio').innerHTML = Object.keys(PRIORIDADES).map(function (k) {
+      return '<button type="button" class="opc' + (k === prioSel ? ' sel' : '') + '" data-prio="' + k + '">' + PRIORIDADES[k].corto + '</button>';
+    }).join('');
+    document.querySelectorAll('[data-tipo]').forEach(function (b) { b.onclick = function () { tipoSel = b.dataset.tipo; pintarOpciones(); }; });
+    document.querySelectorAll('[data-prio]').forEach(function (b) { b.onclick = function () { prioSel = b.dataset.prio; pintarOpciones(); }; });
+  }
+  const $ = function (id) { return document.getElementById(id); };
+  function hoy() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+
+  function abrirForm(i, geo) {
+    edit = i;
+    if (i != null) {
+      const p = puntos[i];
+      borrador = p.coords ? { coords: p.coords } : { lat: p.lat, lng: p.lng };
+      tipoSel = p.tipo; prioSel = p.prioridad || 'media';
+      $('tEs').value = (p.es || {}).titulo || ''; $('dEs').value = (p.es || {}).descripcion || '';
+      $('tEn').value = (p.en || {}).titulo || ''; $('dEn').value = (p.en || {}).descripcion || '';
+      $('foto').value = p.foto || ''; $('fecha').value = p.fecha || hoy();
+      $('formTitulo').textContent = 'Editar punto';
+      $('btnCancelar').textContent = 'Eliminar';
+    } else {
+      borrador = geo;
+      tipoSel = geo.coords ? 'sentido' : 'faltante'; prioSel = 'media';
+      ['tEs', 'dEs', 'tEn', 'dEn', 'foto'].forEach(function (k) { $(k).value = ''; });
+      $('foto').placeholder = 'fotos/punto-' + String(puntos.length + 1).padStart(2, '0') + '.jpg';
+      $('fecha').value = hoy();
+      $('formTitulo').textContent = geo.coords ? 'Nueva línea' : 'Nuevo punto';
+      $('btnCancelar').textContent = 'Cancelar';
+    }
+    $('coordsTxt').textContent = borrador.coords ? 'Línea con ' + borrador.coords.length + ' puntos'
+      : (typeof borrador.lat === 'number' ? 'Ubicación: ' + borrador.lat + ', ' + borrador.lng : 'Sin ubicación todavía');
+    pintarOpciones();
+    hojaForm.hidden = false;
+  }
+  $('btnCancelar').onclick = function () {
+    if (edit != null) {
+      if (!confirm('¿Eliminar este punto?')) return;
+      puntos.splice(edit, 1); guardarLocal(); dibujar();
+    }
+    hojaForm.hidden = true;
+  };
+  $('btnGuardar').onclick = function () {
+    if (!$('tEs').value.trim()) { alert('Escribe al menos el título en español.'); $('tEs').focus(); return; }
+    const anterior = edit != null ? puntos[edit] : null;
+    const p = {
+      id: anterior ? anterior.id : 'p' + Date.now().toString(36),
+      tipo: tipoSel, prioridad: prioSel,
+      es: { titulo: $('tEs').value.trim(), descripcion: $('dEs').value.trim() },
+      en: { titulo: $('tEn').value.trim(), descripcion: $('dEn').value.trim() },
+      foto: $('foto').value.trim(), fecha: $('fecha').value
+    };
+    if (borrador.coords) p.coords = borrador.coords; else if (typeof borrador.lat === 'number') { p.lat = borrador.lat; p.lng = borrador.lng; }
+    if (edit != null) puntos[edit] = p; else puntos.push(p);
+    guardarLocal(); dibujar(); hojaForm.hidden = true;
+  };
+
+  // ---------- lista y exportación ----------
+  const hojaLista = $('hojaLista');
+  function pintarLista() {
+    const orden = puntos.map(function (p, i) { return i; }).sort(function (a, b) { return sinUbicar(puntos[b]) - sinUbicar(puntos[a]); });
+    $('lista').innerHTML = puntos.length ? orden.map(function (i) {
+      const p = puntos[i], t = TIPOS[p.tipo], pend = sinUbicar(p);
+      return '<li><span class="dot" style="background:' + t.color + '">' + t.glifo + '</span><span class="txt">' + escapar(p.es.titulo) +
+        '<small>' + (pend ? '<b style="color:#b42318">Sin ubicar</b> · ' : '') + t.es + ' · ' + (PRIORIDADES[p.prioridad] || {}).corto + (p.fecha ? ' · ' + escapar(p.fecha) : '') + (p.en && p.en.titulo ? '' : ' · ⚠ falta inglés') + '</small></span>' +
+        (pend ? '<button type="button" data-ubicar="' + i + '" style="background:#1d4ed8;color:#fff;border-color:#1d4ed8">📍 Ubicar</button>'
+              : '<button type="button" data-ver="' + i + '">Ver</button>') + '</li>';
+    }).join('') : '<li>Aún no registras puntos.</li>';
+    document.querySelectorAll('[data-ubicar]').forEach(function (b) {
+      b.onclick = function () { hojaLista.hidden = true; empezarUbicar(+b.dataset.ubicar); };
+    });
+    document.querySelectorAll('[data-ver]').forEach(function (b) {
+      b.onclick = function () {
+        const p = puntos[+b.dataset.ver]; hojaLista.hidden = true;
+        mapa.setView(p.coords ? p.coords[0] : [p.lat, p.lng], 19);
+        abrirForm(+b.dataset.ver);
+      };
+    });
+  }
+  $('btnLista').onclick = function () { pintarLista(); hojaLista.hidden = false; };
+  $('btnCerrarLista').onclick = function () { hojaLista.hidden = true; };
+
+  function descargar(nombre, contenido, tipo) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([contenido], { type: tipo }));
+    a.download = nombre; document.body.appendChild(a); a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  }
+  $('btnExpJs').onclick = function () {
+    const listos = puntos.filter(function (p) { return !sinUbicar(p); }).map(function (p) { const c = JSON.parse(JSON.stringify(p)); delete c.pista; return c; });
+    const faltan = puntos.length - listos.length;
+    if (faltan && !confirm(faltan + ' punto(s) todavía no tienen ubicación y no aparecerán en el mapa. ¿Descargar de todos modos?')) return;
+    const js = '// Generado con captura.html el ' + new Date().toLocaleString('es-MX') + '\nwindow.PUNTOS = ' + JSON.stringify(listos, null, 2) + ';\n';
+    descargar('puntos.js', js, 'text/javascript');
+  };
+  $('btnExpCsv').onclick = function () {
+    const col = ['No.', 'Tipo', 'Prioridad', 'Latitud', 'Longitud', 'Trazo (líneas)', 'Título ES', 'Descripción ES', 'Title EN', 'Description EN', 'Foto', 'Fecha'];
+    const q = function (v) { v = String(v == null ? '' : v); return /[",\n;]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+    const filas = puntos.map(function (p, i) {
+      return [i + 1, TIPOS[p.tipo].es, (PRIORIDADES[p.prioridad] || {}).corto, p.lat != null ? p.lat : '', p.lng != null ? p.lng : '',
+        p.coords ? p.coords.map(function (c) { return c.join(' '); }).join(' | ') : '',
+        p.es.titulo, p.es.descripcion, (p.en || {}).titulo, (p.en || {}).descripcion, p.foto, p.fecha].map(q).join(',');
+    });
+    descargar('puntos-registrados.csv', '﻿' + col.join(',') + '\n' + filas.join('\n'), 'text/csv;charset=utf-8');
+  };
+  $('btnImp').onclick = function () { $('archivo').click(); };
+  $('archivo').onchange = function () {
+    const f = this.files[0]; if (!f) return;
+    f.text().then(function (txt) {
+      const ini = txt.indexOf('['), fin = txt.lastIndexOf(']');
+      const arr = JSON.parse(txt.slice(ini, fin + 1));
+      if (!Array.isArray(arr)) throw new Error();
+      if (!confirm('Se cargarán ' + arr.length + ' puntos y reemplazarán los de este celular. ¿Continuar?')) return;
+      puntos = arr.filter(function (p) { return !p.ejemplo && TIPOS[p.tipo]; });
+      guardarLocal(); dibujar(); pintarLista();
+    }).catch(function () { alert('Ese archivo no parece un puntos.js válido.'); });
+    this.value = '';
+  };
+  $('btnBorrarTodo').onclick = function () {
+    if (!puntos.length || !confirm('¿Seguro? Se borrarán ' + puntos.length + ' puntos de este celular. Descarga antes puntos.js si los necesitas.')) return;
+    puntos = []; guardarLocal(); dibujar(); pintarLista();
+  };
+
+  guardarLocal(); dibujar(); actualizarModo();
+})();
+</script>
+</body>
+</html>
