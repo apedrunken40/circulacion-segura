@@ -327,5 +327,73 @@ window.PUNTOS = [
     },
     "foto": "",
     "fecha": "2026-10-03"
+  },
+  {
+    "id": "n1",
+    "tipo": "riesgo",
+    "prioridad": "alta",
+    "es": {
+      "titulo": "Bolardos caídos y doblados en la banqueta",
+      "descripcion": "Varios postes metálicos (bolardos) están doblados o tirados en el piso. Puedes tropezar con ellos, sobre todo de noche."
+    },
+    "en": {
+      "titulo": "Fallen and bent bollards on the sidewalk",
+      "descripcion": "Several metal posts (bollards) are bent or lying on the ground. You could trip over them, especially at night."
+    },
+    "foto": "fotos/n1.jpg",
+    "fecha": "2026-10-04",
+    "lat": 23.062857,
+    "lng": -109.695465
+  },
+  {
+    "id": "n2",
+    "tipo": "deteriorada",
+    "prioridad": "media",
+    "es": {
+      "titulo": "Placa de calle tapada por ramas secas",
+      "descripcion": "La placa con el nombre de la calle Álvaro Obregón está cubierta por hojas secas de palmera y casi no se lee."
+    },
+    "en": {
+      "titulo": "Street sign covered by dry palm leaves",
+      "descripcion": "The Álvaro Obregón street-name sign is covered by dry palm leaves and is hard to read."
+    },
+    "foto": "fotos/n2.jpg",
+    "fecha": "2026-10-04",
+    "lat": 23.062739,
+    "lng": -109.695895
+  },
+  {
+    "id": "n3",
+    "tipo": "riesgo",
+    "prioridad": "media",
+    "es": {
+      "titulo": "Charcos y hoyo en la calle al llover",
+      "descripcion": "Cuando llueve se forman charcos grandes y hay un hueco donde falta una pieza del piso. Maneja y camina con cuidado."
+    },
+    "en": {
+      "titulo": "Puddles and a hole when it rains",
+      "descripcion": "When it rains, large puddles form and there is a hole where a piece of pavement is missing. Drive and walk carefully."
+    },
+    "foto": "fotos/n3.jpg",
+    "fecha": "2026-10-04",
+    "lat": 23.062767,
+    "lng": -109.695625
+  },
+  {
+    "id": "n4",
+    "tipo": "riesgo",
+    "prioridad": "baja",
+    "es": {
+      "titulo": "Agua acumulada frente a la plaza",
+      "descripcion": "Después de la lluvia el agua se queda en la calle frente a la plaza. El adoquín mojado es resbaloso."
+    },
+    "en": {
+      "titulo": "Standing water by the plaza",
+      "descripcion": "After rain, water stays on the street in front of the plaza. Wet cobblestones are slippery."
+    },
+    "foto": "fotos/n4.jpg",
+    "fecha": "2026-10-04",
+    "lat": 23.061959,
+    "lng": -109.695196
   }
 ];
