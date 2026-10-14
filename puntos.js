@@ -188,6 +188,23 @@ window.PUNTOS = [
     "lng": -109.695345
   },
   {
+    "id": "r19",
+    "tipo": "faltante",
+    "prioridad": "alta",
+    "es": {
+      "titulo": "Manuel Doblado y Miguel Hidalgo: cruce sin ALTO ni sentido",
+      "descripcion": "En este cruce no hay señal de ALTO ni de sentido de circulación, y algunos autos entran en sentido contrario. Hidalgo va hacia el sur y Doblado hacia el poniente. Detente antes de cruzar."
+    },
+    "en": {
+      "titulo": "Manuel Doblado & Miguel Hidalgo: no STOP or direction sign",
+      "descripcion": "This intersection has no STOP sign and no one-way sign, and some cars enter the wrong way. Hidalgo runs south and Doblado runs west. Stop before crossing."
+    },
+    "foto": "fotos/r19.jpg",
+    "fecha": "2026-10-14",
+    "lat": 23.06124,
+    "lng": -109.69532
+  },
+  {
     "id": "s01",
     "tipo": "sentido",
     "prioridad": "baja",
